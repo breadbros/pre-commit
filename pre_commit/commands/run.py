@@ -292,12 +292,18 @@ def _run_hooks(
     )
     retval = 0
     prior_diff = _get_diff()
+    os.environ["PRE_COMMIT_NUMBER_HOOKS_BEING_RUN"] = str(len(hooks))
+    hook_idx = 0
     for hook in hooks:
+        os.environ["PRE_COMMIT_INDEX_OF_CURRENT_HOOK"] = str(hook_idx)
+        os.environ["PRE_COMMIT_SUMMED_RETVAL"] = str(retval)
+        
         current_retval, prior_diff = _run_single_hook(
             classifier, hook, skips, cols, prior_diff,
             verbose=args.verbose, use_color=args.color,
         )
         retval |= current_retval
+        
         if retval and (config['fail_fast'] or hook.fail_fast):
             break
     if retval and args.show_diff_on_failure and prior_diff:
@@ -317,6 +323,14 @@ def _run_hooks(
             'git', '--no-pager', 'diff', '--no-ext-diff',
             f'--color={git_color_opt}',
         ))
+
+    def env_cleanup(name):
+        if name in os.environ:
+            del os.environ[name]
+            
+    env_cleanup("PRE_COMMIT_NUMBER_HOOKS_BEING_RUN")
+    env_cleanup("PRE_COMMIT_INDEX_OF_CURRENT_HOOK")
+    env_cleanup("PRE_COMMIT_SUMMED_RETVAL")
 
     return retval
 
